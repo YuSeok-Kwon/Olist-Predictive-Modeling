@@ -50,7 +50,8 @@ Thumbs.db
 # Data (선택적 - 대용량 파일 제외)
 *.csv
 *.xlsx
-# *.txt
+*.txt
+!requirements.txt
 *.png
 *.pdf
 
