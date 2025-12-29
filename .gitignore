@@ -49,6 +49,16 @@ Thumbs.db
 
 # Data (선택적 - 대용량 파일 제외)
 *.csv
+# Data (선택적 - 대용량 파일 제외)
+*.csv
+!kys/Olist_DataSet/ML_olist.csv
+!kys/Olist_DataSet/merged_olist.csv
+!kys/Result/risk_report_result.csv
+*.xlsx
+*.txt
+!requirements.txt
+*.png
+*.pdf
 *.xlsx
 *.txt
 !requirements.txt
