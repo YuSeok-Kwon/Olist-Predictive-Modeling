@@ -20,10 +20,9 @@ def send_risk_report(df, threshold=0.3, receiver_email=None):
     sender_email = os.getenv('GMAIL_USER')
     app_password = os.getenv('GMAIL_PASSWORD')
 
-    # (Threshold 필터링)
     risky_sellers = df[df['y_pred_proba'] >= threshold].copy()
     
-    # (위험한 사람이 없으면 메일 안 보내기)
+    # 위험한 사람이 없으면 메일 안 보내기)
     if len(risky_sellers) == 0:
         print(f"[{datetime.datetime.now()}] 위험 판매자 없음.")
         return
@@ -108,9 +107,12 @@ def job():
     print(f"\n[스케줄러 실행] {datetime.datetime.now()}")
     
     try:
-        # csv 파일 이름이 맞는지 꼭 확인하세요
-        df = pd.read_csv('kys/Result/risk_report_result.csv')
-        print("데이터 로드 성공. 메일 전송을 시도합니다.")
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        csv_path = os.path.join(script_dir, 'risk_report_result.csv')
+        
+        df = pd.read_csv(csv_path)
+        print(f"데이터 로드 성공: {csv_path}")
+        print("메일 전송을 시도합니다.")
         
         # 메일 전송 함수 호출 (threshold=0.25: YELLOW ZONE 기준)
         send_risk_report(df, threshold=0.25, receiver_email="kyus0919@gmail.com")
@@ -129,8 +131,8 @@ if __name__ == "__main__":
     # 매일 아침 9시 실행
     # schedule.every().day.at("09:00").do(job)
     
-    # (테스트용) 10초마다 실행 -> 테스트 후엔 주석 처리하고 위 코드를 푸세요!
-    schedule.every(10).seconds.do(job)
+    # (테스트용) 10초마다 실행
+    # schedule.every(10).seconds.do(job)
 
     # 무한 루프 (프로그램이 꺼지지 않게 함)
     while True:
