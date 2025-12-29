@@ -52,6 +52,7 @@ Thumbs.db
 *.xlsx
 *.txt
 *.png
+*.pdf
 
 # Streamlit
 .streamlit/secrets.toml
