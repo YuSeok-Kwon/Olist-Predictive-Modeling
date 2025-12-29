@@ -57,7 +57,60 @@
 
 ---
 
-## 시작하기
+## 대시보드 데모
+
+### Streamlit Cloud 배포
+
+**라이브 대시보드**: [대시보드 URL을 여기에 추가하세요]
+
+대시보드를 통해 다음 기능을 이용할 수 있습니다:
+
+- 실시간 비즈니스 현황 모니터링
+- 위험 판매자 조기 경보 시스템
+- 카테고리별/지역별 성과 분석
+- 데이터 갱신 (ML 파이프라인 원클릭 실행)
+
+### 로컬 실행 방법
+
+#### 1. 필수 패키지 설치
+
+```bash
+pip install -r requirements.txt
+```
+
+**requirements.txt 내용:**
+
+```txt
+streamlit>=1.28.0
+pandas>=2.0.0
+plotly>=5.14.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+```
+
+#### 2. 대시보드 실행
+
+```bash
+# 프로젝트 루트에서 실행
+streamlit run kys/Result/dashboard.py
+
+# 또는 네트워크 공유 (같은 Wi-Fi 내 팀원과 공유)
+streamlit run kys/Result/dashboard.py --server.address 0.0.0.0
+```
+
+실행 후 브라우저에서 `http://localhost:8501` 접속
+
+#### 3. 데이터 갱신
+
+대시보드 사이드바의 "위험 판매자 데이터 갱신" 버튼 클릭
+
+- ML 파이프라인 자동 실행 (약 30초 소요)
+- 최신 위험 판매자 예측 데이터 생성
+- 자동으로 대시보드에 반영
+
+---
+
+## 시작하기 (분석용)
 
 ### 필수 라이브러리
 
