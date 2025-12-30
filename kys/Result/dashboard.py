@@ -140,7 +140,7 @@ if not df_ml.empty:
         st.sidebar.warning("⚠️ 위험 판매자 데이터가 없습니다")
     
     # 갱신 버튼
-    if st.sidebar.button("🔄 위험 판매자 데이터 갱신", type="primary", use_container_width=True):
+    if st.sidebar.button("🔄 위험 판매자 데이터 갱신", type="primary", width='stretch'):
         with st.spinner("데이터 생성 중... (약 30초 소요)"):
             # generate_risk_data.py 실행
             result = generate_risk_report()
@@ -194,7 +194,7 @@ if df_ml.empty:
     st.stop()
 
 # =========================================================
-# Section 1 & 2: 비즈니스 개요 + 판매자 성과 (상단 Z자)
+# Section 1 & 2: 비즈니스 개요 + 판매자 성과
 # =========================================================
 st.markdown("## 📈 전체 비즈니스 현황")
 
@@ -295,7 +295,6 @@ with col1:
         )
     
     # === 위험 신호 알림 박스 ===
-    st.markdown("---")
     st.markdown("#### 🚨 주의 필요 항목")
     
     alert_col1, alert_col2 = st.columns(2)
@@ -335,24 +334,38 @@ with col1:
                         title='📅 월별 주문 추이',
                         markers=True)
     fig_trend.update_layout(height=250, xaxis_title="", yaxis_title="주문 건수")
-    st.plotly_chart(fig_trend, use_container_width=True)
+    st.plotly_chart(fig_trend, width='stretch')
 
 # ===== 우측: 판매자 성과 분석 =====
 with col2:
     st.markdown("### 🚚 판매자 성과 분석")
     
-    # KPI 지표
-    kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
+    # KPI 지표 - 첫 번째 줄 (2개)
+    st.markdown("""
+    <style>
+        div[data-testid="column"] [data-testid="stMetricValue"] {
+            font-size: 30px;
+        }
+        div[data-testid="column"] [data-testid="stMetricLabel"] {
+            font-size: 25px;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    kpi_col1, kpi_col2 = st.columns(2)
     with kpi_col1:
         avg_processing = df_filtered['seller_processing_days'].mean()
         st.metric("평균 처리 시간", f"{avg_processing:.1f}일")
     with kpi_col2:
         avg_delay = df_filtered['seller_delay_days'].mean()
         st.metric("평균 지연", f"{avg_delay:.1f}일")
+
+    # KPI 지표 - 두 번째 줄
+    _, kpi_col3, _ = st.columns([1, 1, 1])
     with kpi_col3:
         logistics_fault_rate = (df_filtered['is_logistics_fault'].sum() / len(df_filtered) * 100)
         st.metric("물류사 과실률", f"{logistics_fault_rate:.1f}%")
-    
+
     # 판매자 처리 시간 분포
     fig_processing = px.histogram(df_filtered, x='seller_processing_days',
                                   title='⏱️ 판매자 처리 시간 분포',
@@ -360,7 +373,7 @@ with col2:
     fig_processing.update_layout(height=300, xaxis_title="처리 시간 (일)", yaxis_title="주문 건수")
     fig_processing.add_vline(x=avg_processing, line_dash="dash", line_color="red", 
                             annotation_text=f"평균: {avg_processing:.1f}일")
-    st.plotly_chart(fig_processing, use_container_width=True)
+    st.plotly_chart(fig_processing, width='stretch')
     
     # 배송 지연 vs 정상 배송
     delay_status = pd.DataFrame({
@@ -375,7 +388,7 @@ with col2:
                        color='상태',
                        color_discrete_map={'정상 배송': 'green', '지연 발생': 'red'})
     fig_delay.update_layout(height=300, showlegend=False)
-    st.plotly_chart(fig_delay, use_container_width=True)
+    st.plotly_chart(fig_delay, width='stretch')
 
 st.markdown("---")
 
@@ -384,6 +397,7 @@ st.markdown("---")
 # =========================================================
 st.markdown("## 💬 고객 만족도 및 위험 관리")
 
+# ===== 좌우 2컬럼 배치: 리뷰 분석 + 위험 판매자 차트 =====
 col3, col4 = st.columns(2)
 
 # ===== 좌측: 리뷰 분석 =====
@@ -402,6 +416,8 @@ with col3:
         positive_rate = (len(df_filtered[df_filtered['review_score'] >= 4]) / len(df_filtered) * 100)
         st.metric("긍정 리뷰율", f"{positive_rate:.1f}%")
     
+    st.markdown("---")
+    
     # 리뷰 점수 분포
     review_dist = df_filtered['review_score'].value_counts().sort_index()
     fig_review = px.bar(x=review_dist.index, y=review_dist.values,
@@ -410,8 +426,7 @@ with col3:
                         color=review_dist.index,
                         color_continuous_scale=['red', 'orange', 'yellow', 'lightgreen', 'green'])
     fig_review.update_layout(height=300, showlegend=False)
-    st.plotly_chart(fig_review, use_container_width=True)
-    
+    st.plotly_chart(fig_review, width='stretch')
     
     # 카테고리별 평균 리뷰 점수 (상위/하위 각 5개)
     category_review = df_filtered.groupby('product_category_name_english')['review_score'].agg(['mean', 'count'])
@@ -426,10 +441,10 @@ with col3:
                             labels={'mean': '평균 점수', 'product_category_name_english': ''},
                             color='mean',
                             color_continuous_scale='RdYlGn')
-    fig_cat_review.update_layout(height=350)
-    st.plotly_chart(fig_cat_review, use_container_width=True)
+    fig_cat_review.update_layout(height=300)
+    st.plotly_chart(fig_cat_review, width='stretch')
 
-# ===== 우측: 위험 판매자 모니터링 =====
+# ===== 우측: 위험 판매자 모니터링 (차트만) =====
 with col4:
     st.markdown("### 🚨 위험 판매자 조기 경보")
     
@@ -444,26 +459,33 @@ with col4:
             df_risk_filtered = df_risk.copy()
         
         # 위험 등급 필터 적용
-        df_risk_filtered = df_risk_filtered[df_risk_filtered['priority'].isin(priority_options)]
+        if 'priority' in df_risk_filtered.columns:
+            df_risk_filtered = df_risk_filtered[df_risk_filtered['priority'].isin(priority_options)]
         
         # Threshold 기반 필터링
         risky_sellers = df_risk_filtered[df_risk_filtered['y_pred_proba'] >= risk_threshold]
         
         # 등급별 집계
-        red_count = (df_risk['priority'] == 'RED').sum()
-        orange_count = (df_risk['priority'] == 'ORANGE').sum()
-        yellow_count = (df_risk['priority'] == 'YELLOW').sum()
+        if 'priority' in df_risk.columns:
+            red_count = (df_risk['priority'] == 'RED').sum()
+            orange_count = (df_risk['priority'] == 'ORANGE').sum()
+            yellow_count = (df_risk['priority'] == 'YELLOW').sum()
+        else:
+            # 하위 호환성: priority 컬럼이 없으면 실시간 계산
+            red_count = (df_risk['y_pred_proba'] >= 0.8).sum()
+            orange_count = ((df_risk['y_pred_proba'] >= 0.4) & (df_risk['y_pred_proba'] < 0.8)).sum()
+            yellow_count = ((df_risk['y_pred_proba'] >= 0.3) & (df_risk['y_pred_proba'] < 0.4)).sum()
         
-        # KPI 지표 (4열)
-        kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
+        # KPI 지표 (2x2 배치)
+        kpi_col1, kpi_col2 = st.columns(2)
         with kpi_col1:
             st.metric("감지된 위험 판매자", f"{len(risky_sellers)}명")
         with kpi_col2:
             st.metric("🔴 RED", f"{red_count}명")
-        with kpi_col3:
-            st.metric("🟠 ORANGE", f"{orange_count}명")
-        with kpi_col4:
-            st.metric("🟡 YELLOW", f"{yellow_count}명")
+            # st.metric("🟠 ORANGE", f"{orange_count}명")
+            # st.metric("🟡 YELLOW", f"{yellow_count}명")
+        
+        st.markdown("---")
         
         # 등급별 비중 파이차트
         if red_count + orange_count + yellow_count > 0:
@@ -477,66 +499,90 @@ with col4:
                                  title='📊 위험 등급별 비중',
                                  color='등급',
                                  color_discrete_map={'RED': '#ff4444', 'ORANGE': '#ff9944', 'YELLOW': '#ffdd44'})
-            fig_priority.update_layout(height=250)
-            st.plotly_chart(fig_priority, use_container_width=True)
+            fig_priority.update_layout(height=300)
+            st.plotly_chart(fig_priority, width='stretch')
         
         # 위험도 분포 히스토그램
         fig_risk_hist = px.histogram(df_risk, x="y_pred_proba", nbins=20, 
                                      title="📊 전체 판매자 위험 확률 분포")
         fig_risk_hist.add_vline(x=risk_threshold, line_dash="dash", line_color="red", 
                                annotation_text="Threshold")
-        fig_risk_hist.update_layout(height=250, xaxis_title="위험 확률", yaxis_title="판매자 수")
-        st.plotly_chart(fig_risk_hist, use_container_width=True)
-        
-        # 필터링된 위험 판매자 상세 목록
-        if not risky_sellers.empty:
-            st.markdown(f"#### 📋 위험 판매자 목록 ({len(risky_sellers)}명)")
-            
-            # Seller ID 검색 결과 강조
-            if seller_search:
-                st.info(f"🔍 '{seller_search}' 검색 결과: {len(risky_sellers)}건")
-            
-            # 테이블 표시용 데이터 준비
-            display_df = risky_sellers.sort_values('y_pred_proba', ascending=False).copy()
-            display_df['위험_확률'] = (display_df['y_pred_proba'] * 100).round(1).astype(str) + '%'
-            display_df['등급'] = display_df['priority'].map({
-                'RED': '🔴 RED',
-                'ORANGE': '🟠 ORANGE',
-                'YELLOW': '🟡 YELLOW'
-            })
-            
-            # 컬럼 선택 및 이름 변경
-            table_df = display_df[['seller_id', '등급', '위험_확률', '주요_위험사유']].copy()
-            table_df.columns = ['Seller ID', '등급', '위험 확률', '주요 위험사유']
-            
-            # 테이블 표시 (최대 20개)
-            st.dataframe(
-                table_df.head(20),
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "Seller ID": st.column_config.TextColumn("Seller ID", width="medium"),
-                    "등급": st.column_config.TextColumn("등급", width="small"),
-                    "위험 확률": st.column_config.TextColumn("위험 확률", width="small"),
-                    "주요 위험사유": st.column_config.TextColumn("주요 위험사유", width="large")
-                }
-            )
-            
-            if len(risky_sellers) > 20:
-                st.caption(f"💡 상위 20개만 표시됨 (전체 {len(risky_sellers)}개)")
-            
-            # 다운로드 버튼
-            csv = display_df[['seller_id', 'priority', 'y_pred_proba', '주요_위험사유']].to_csv(index=False, encoding='utf-8-sig')
-            st.download_button(
-                label="📥 전체 목록 다운로드 (CSV)",
-                data=csv,
-                file_name=f"risk_sellers_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv"
-            )
-        else:
-            st.info("현재 필터 조건에 해당하는 위험 판매자가 없습니다. ✅")
+        fig_risk_hist.update_layout(height=300, xaxis_title="위험 확률", yaxis_title="판매자 수")
+        st.plotly_chart(fig_risk_hist, width='stretch')
     else:
         st.warning("⚠️ 위험 판매자 데이터가 없습니다. 사이드바에서 데이터를 갱신해주세요.")
+
+st.markdown("---")
+
+# =========================================================
+# 위험 판매자 상세 목록 (전체 폭 활용)
+# =========================================================
+if not df_risk.empty and not risky_sellers.empty:
+    st.markdown("## 📋 위험 판매자 상세 목록")
+    
+    # Seller ID 검색 결과 강조
+    if seller_search:
+        st.info(f"🔍 '{seller_search}' 검색 결과: {len(risky_sellers)}건")
+    
+    # priority 컬럼 확인 및 생성
+    if 'priority' not in risky_sellers.columns:
+        def assign_priority(prob):
+            if prob >= 0.8:
+                return 'RED'
+            elif prob >= 0.4:
+                return 'ORANGE'
+            else:
+                return 'YELLOW'
+        risky_sellers = risky_sellers.copy()
+        risky_sellers['priority'] = risky_sellers['y_pred_proba'].apply(assign_priority)
+    
+    # 주요_위험사유 컬럼 확인
+    if '주요_위험사유' not in risky_sellers.columns:
+        risky_sellers = risky_sellers.copy()
+        risky_sellers['주요_위험사유'] = '데이터 갱신 필요'
+    
+    # 테이블 표시용 데이터 준비
+    display_df = risky_sellers.sort_values('y_pred_proba', ascending=False).copy()
+    display_df['위험_확률'] = (display_df['y_pred_proba'] * 100).round(1).astype(str) + '%'
+    display_df['등급'] = display_df['priority'].map({
+        'RED': '🔴 RED',
+        'ORANGE': '🟠 ORANGE',
+        'YELLOW': '🟡 YELLOW'
+    })
+    
+    # 컬럼 선택 및 이름 변경
+    table_df = display_df[['seller_id', '등급', '위험_확률', '주요_위험사유']].copy()
+    table_df.columns = ['Seller ID', '등급', '위험 확률', '주요 위험사유']
+    
+    # 테이블 표시 (최대 20개)
+    st.dataframe(
+        table_df.head(20),
+        width='stretch',
+        hide_index=True,
+        column_config={
+            "Seller ID": st.column_config.TextColumn("Seller ID", width="medium"),
+            "등급": st.column_config.TextColumn("등급", width="small"),
+            "위험 확률": st.column_config.TextColumn("위험 확률", width="small"),
+            "주요 위험사유": st.column_config.TextColumn("주요 위험사유", width="large")
+        }
+    )
+    
+    if len(risky_sellers) > 20:
+        st.caption(f"💡 상위 20개만 표시됨 (전체 {len(risky_sellers)}개)")
+    
+    # 다운로드 버튼
+    col_download1, col_download2, col_download3 = st.columns([1, 1, 2])
+    with col_download1:
+        csv = display_df[['seller_id', 'priority', 'y_pred_proba', '주요_위험사유']].to_csv(index=False, encoding='utf-8-sig')
+        st.download_button(
+            label="📥 전체 목록 다운로드 (CSV)",
+            data=csv,
+            file_name=f"risk_sellers_{datetime.now().strftime('%Y%m%d')}.csv",
+            mime="text/csv",
+            use_container_width=True
+        )
+elif not df_risk.empty and risky_sellers.empty:
+    st.info("✅ 현재 필터 조건에 해당하는 위험 판매자가 없습니다.")
         
 st.markdown("---")
 
@@ -573,7 +619,7 @@ with tab1:
                           title='📦 배송 문제 책임 소재',
                           color='책임',
                           color_discrete_map={'물류사 과실': 'orange', '판매자 책임': 'red'})
-        st.plotly_chart(fig_fault, use_container_width=True)
+        st.plotly_chart(fig_fault, width='stretch')
     
     with col_insight2:
         st.markdown("#### 2. 카테고리 특성 분석")
@@ -600,7 +646,7 @@ with tab1:
                                     'product_category_name_english': ''},
                              color='seller_processing_days',
                              color_continuous_scale='Reds')
-        st.plotly_chart(fig_cat_proc, use_container_width=True)
+        st.plotly_chart(fig_cat_proc, width='stretch')
     
     st.markdown("#### 3. 유의 판매자 패턴")
     col_pattern1, col_pattern2, col_pattern3 = st.columns(3)
