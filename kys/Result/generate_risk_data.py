@@ -47,6 +47,7 @@ def generate_risk_report(
                 'message': f'입력 파일을 찾을 수 없습니다: {input_path}',
                 'total_risk_sellers': 0,
                 'red_zone': 0,
+                'orange_zone': 0,
                 'yellow_zone': 0,
                 'duration_seconds': 0
             }
@@ -221,6 +222,8 @@ def generate_risk_report(
         def assign_priority(prob):
             if prob >= 0.8:
                 return 'RED'
+            elif prob >= 0.4:
+                return 'ORANGE'
             else:
                 return 'YELLOW'
         
@@ -278,14 +281,16 @@ def generate_risk_report(
         
         # 통계 집계
         red_zone_count = (risk_sellers['priority'] == 'RED').sum()
+        orange_zone_count = (risk_sellers['priority'] == 'ORANGE').sum()
         yellow_zone_count = (risk_sellers['priority'] == 'YELLOW').sum()
         
         return {
             'success': True,
             'total_risk_sellers': len(risk_sellers),
             'red_zone': int(red_zone_count),
+            'orange_zone': int(orange_zone_count),
             'yellow_zone': int(yellow_zone_count),
-            'message': f'성공적으로 생성되었습니다. (RED: {red_zone_count}명, YELLOW: {yellow_zone_count}명)',
+            'message': f'성공적으로 생성되었습니다. (RED: {red_zone_count}명, ORANGE: {orange_zone_count}명, YELLOW: {yellow_zone_count}명)',
             'duration_seconds': round(duration, 2),
             'dataframe': risk_sellers,  # DataFrame 추가
             'csv_saved': csv_saved  # CSV 저장 여부
@@ -297,6 +302,7 @@ def generate_risk_report(
             'message': f'오류 발생: {str(e)}',
             'total_risk_sellers': 0,
             'red_zone': 0,
+            'orange_zone': 0,
             'yellow_zone': 0,
             'duration_seconds': (datetime.now() - start_time).total_seconds()
         }
@@ -314,6 +320,7 @@ if __name__ == '__main__':
     print(f"  - 성공 여부: {result['success']}")
     print(f"  - 총 위험 판매자: {result['total_risk_sellers']}명")
     print(f"  - RED ZONE: {result['red_zone']}명")
+    print(f"  - ORANGE ZONE: {result['orange_zone']}명")
     print(f"  - YELLOW ZONE: {result['yellow_zone']}명")
     print(f"  - 메시지: {result['message']}")
     print(f"  - 실행 시간: {result['duration_seconds']}초")
