@@ -99,6 +99,24 @@ if not df_ml.empty:
     st.sidebar.subheader("위험 판매자 기준")
     risk_threshold = st.sidebar.slider("위험 확률 기준", 0.0, 1.0, 0.30, 0.05)
     
+    # 위험 등급 필터
+    if not df_risk.empty:
+        priority_options = st.sidebar.multiselect(
+            "위험 등급 필터",
+            options=['RED', 'ORANGE', 'YELLOW'],
+            default=['RED', 'ORANGE', 'YELLOW'],
+            help="표시할 위험 등급을 선택하세요"
+        )
+    else:
+        priority_options = ['RED', 'ORANGE', 'YELLOW']
+    
+    # Seller ID 검색
+    seller_search = st.sidebar.text_input(
+        "Seller ID 검색",
+        placeholder="seller_id를 입력하세요",
+        help="특정 판매자를 검색하려면 ID를 입력하세요"
+    )
+    
     # =========================================================
     # 데이터 갱신 섹션
     # =========================================================
@@ -137,6 +155,7 @@ if not df_ml.empty:
                     f"갱신 완료!\n"
                     f"- 총 위험 판매자: {result['total_risk_sellers']}명\n"
                     f"- RED ZONE: {result['red_zone']}명\n"
+                    f"- ORANGE ZONE: {result['orange_zone']}명\n"
                     f"- YELLOW ZONE: {result['yellow_zone']}명\n"
                     f"- 소요 시간: {result['duration_seconds']}초\n"
                     f"- {csv_status}"
@@ -182,7 +201,7 @@ st.markdown("## 📈 전체 비즈니스 현황")
 # =========================================================
 # 상황판 요약 배너 - 4개 신호등 스타일
 # =========================================================
-# 목표 기준값 설정 (필요시 조정 가능)
+# 목표 기준값 설정
 TARGET_DELAY_RATE = 20.0  # 배송 지연율 목표 (%)
 TARGET_NEGATIVE_RATE = 10.0  # 부정 리뷰율 목표 (%)
 TARGET_SELLER_RISK_RATE = 10.0  # 유의 판매자 비율 목표 (%)
@@ -415,42 +434,109 @@ with col4:
     st.markdown("### 🚨 위험 판매자 조기 경보")
     
     if not df_risk.empty:
-        # 위험 판매자 필터링
-        risky_sellers = df_risk[df_risk['y_pred_proba'] >= risk_threshold]
-        safe_sellers = df_risk[df_risk['y_pred_proba'] < risk_threshold]
+        # Seller ID 검색 적용
+        if seller_search:
+            df_risk_filtered = df_risk[df_risk['seller_id'].str.contains(seller_search, case=False, na=False)]
+            if df_risk_filtered.empty:
+                st.warning(f"'{seller_search}'와 일치하는 판매자가 없습니다.")
+                df_risk_filtered = df_risk.copy()
+        else:
+            df_risk_filtered = df_risk.copy()
         
-        # KPI 지표
-        kpi_col1, kpi_col2, kpi_col3 = st.columns(3)
+        # 위험 등급 필터 적용
+        df_risk_filtered = df_risk_filtered[df_risk_filtered['priority'].isin(priority_options)]
+        
+        # Threshold 기반 필터링
+        risky_sellers = df_risk_filtered[df_risk_filtered['y_pred_proba'] >= risk_threshold]
+        
+        # 등급별 집계
+        red_count = (df_risk['priority'] == 'RED').sum()
+        orange_count = (df_risk['priority'] == 'ORANGE').sum()
+        yellow_count = (df_risk['priority'] == 'YELLOW').sum()
+        
+        # KPI 지표 (4열)
+        kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
         with kpi_col1:
             st.metric("감지된 위험 판매자", f"{len(risky_sellers)}명")
         with kpi_col2:
-            st.metric("현재 Threshold", f"{risk_threshold:.2f}")
+            st.metric("🔴 RED", f"{red_count}명")
         with kpi_col3:
-            if not risky_sellers.empty:
-                st.metric("평균 위험 확률", f"{risky_sellers['y_pred_proba'].mean():.2f}")
-            else:
-                st.metric("평균 위험 확률", "N/A")
+            st.metric("🟠 ORANGE", f"{orange_count}명")
+        with kpi_col4:
+            st.metric("🟡 YELLOW", f"{yellow_count}명")
         
-        # 위험도 분포
+        # 등급별 비중 파이차트
+        if red_count + orange_count + yellow_count > 0:
+            priority_dist = pd.DataFrame({
+                '등급': ['RED', 'ORANGE', 'YELLOW'],
+                '판매자 수': [red_count, orange_count, yellow_count]
+            })
+            priority_dist = priority_dist[priority_dist['판매자 수'] > 0]
+            
+            fig_priority = px.pie(priority_dist, values='판매자 수', names='등급',
+                                 title='📊 위험 등급별 비중',
+                                 color='등급',
+                                 color_discrete_map={'RED': '#ff4444', 'ORANGE': '#ff9944', 'YELLOW': '#ffdd44'})
+            fig_priority.update_layout(height=250)
+            st.plotly_chart(fig_priority, use_container_width=True)
+        
+        # 위험도 분포 히스토그램
         fig_risk_hist = px.histogram(df_risk, x="y_pred_proba", nbins=20, 
                                      title="📊 전체 판매자 위험 확률 분포")
         fig_risk_hist.add_vline(x=risk_threshold, line_dash="dash", line_color="red", 
                                annotation_text="Threshold")
-        fig_risk_hist.update_layout(height=300, xaxis_title="위험 확률", yaxis_title="판매자 수")
+        fig_risk_hist.update_layout(height=250, xaxis_title="위험 확률", yaxis_title="판매자 수")
         st.plotly_chart(fig_risk_hist, use_container_width=True)
         
-        # 상위 위험 판매자 TOP 10
+        # 필터링된 위험 판매자 상세 목록
         if not risky_sellers.empty:
-            top_10 = risky_sellers.sort_values('y_pred_proba', ascending=False).head(10)
-            fig_top_risk = px.bar(top_10, x='y_pred_proba', y='seller_id', 
-                                 orientation='h',
-                                 title="🚨 최상위 위험군 (Top 10)", 
-                                 color='y_pred_proba', 
-                                 color_continuous_scale='Reds')
-            fig_top_risk.update_layout(height=350, yaxis={'categoryorder':'total ascending'})
-            st.plotly_chart(fig_top_risk, use_container_width=True)
+            st.markdown(f"#### 📋 위험 판매자 목록 ({len(risky_sellers)}명)")
+            
+            # Seller ID 검색 결과 강조
+            if seller_search:
+                st.info(f"🔍 '{seller_search}' 검색 결과: {len(risky_sellers)}건")
+            
+            # 테이블 표시용 데이터 준비
+            display_df = risky_sellers.sort_values('y_pred_proba', ascending=False).copy()
+            display_df['위험_확률'] = (display_df['y_pred_proba'] * 100).round(1).astype(str) + '%'
+            display_df['등급'] = display_df['priority'].map({
+                'RED': '🔴 RED',
+                'ORANGE': '🟠 ORANGE',
+                'YELLOW': '🟡 YELLOW'
+            })
+            
+            # 컬럼 선택 및 이름 변경
+            table_df = display_df[['seller_id', '등급', '위험_확률', '주요_위험사유']].copy()
+            table_df.columns = ['Seller ID', '등급', '위험 확률', '주요 위험사유']
+            
+            # 테이블 표시 (최대 20개)
+            st.dataframe(
+                table_df.head(20),
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Seller ID": st.column_config.TextColumn("Seller ID", width="medium"),
+                    "등급": st.column_config.TextColumn("등급", width="small"),
+                    "위험 확률": st.column_config.TextColumn("위험 확률", width="small"),
+                    "주요 위험사유": st.column_config.TextColumn("주요 위험사유", width="large")
+                }
+            )
+            
+            if len(risky_sellers) > 20:
+                st.caption(f"💡 상위 20개만 표시됨 (전체 {len(risky_sellers)}개)")
+            
+            # 다운로드 버튼
+            csv = display_df[['seller_id', 'priority', 'y_pred_proba', '주요_위험사유']].to_csv(index=False, encoding='utf-8-sig')
+            st.download_button(
+                label="📥 전체 목록 다운로드 (CSV)",
+                data=csv,
+                file_name=f"risk_sellers_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
         else:
-            st.info("현재 기준을 넘는 위험 판매자가 없습니다. ✅")
+            st.info("현재 필터 조건에 해당하는 위험 판매자가 없습니다. ✅")
+    else:
+        st.warning("⚠️ 위험 판매자 데이터가 없습니다. 사이드바에서 데이터를 갱신해주세요.")
         
 st.markdown("---")
 
@@ -581,8 +667,6 @@ with tab2:
     
     **실행 방안:**
     - 첫 30일간 **집중 모니터링 기간** 설정
-    - 판매자 등급제 도입 (Starter → Bronze → Silver → Gold)
-    - 초기 3개월간 배송 품질 평가 후 **등급 조정**
     - 우수 판매자 **수수료 할인** 혜택 제공
     
     **예상 효과:**
@@ -596,7 +680,7 @@ with tab2:
     
     **실행 방안:**
     - **이 대시보드를 활용한 주간 리뷰** 정례화
-    - 위험 판매자 조기 경보 시스템 알림 자동화
+    - 위험 판매자 메일 알림 시스템 도입
     - 카테고리별 KPI 목표 설정 및 추적
     - 분기별 전략 회의에서 인사이트 활용
     
@@ -608,7 +692,7 @@ with tab2:
 with tab3:
     st.markdown("### ⚠️ 위험 요인 종합 분석 및 대응 전략")
     
-    st.markdown("#### 📌 유의 판매자(Seller of Note) 정의")
+    st.markdown("#### 📌 유의 판매자 정의")
     st.warning("""
     **유의 판매자란?**
     
@@ -639,8 +723,8 @@ with tab3:
         st.info("""
         **우선순위별 대응:**
         
-        - **RED (0.6 이상)**: 즉각 제재/경고 발송
-        - **ORANGE (0.4-0.6)**: 집중 모니터링 및 개선 권고
+        - **RED (0.8 이상)**: 즉각 제재/경고 발송
+        - **ORANGE (0.4-0.79)**: 집중 모니터링 및 개선 권고
         - **YELLOW (0.3-0.4)**: 관찰 대상 등록
         
         *우선순위는 자동으로 할당됩니다*
@@ -649,8 +733,8 @@ with tab3:
     st.markdown("#### 🛡️ 단계별 관리 전략")
     
     st.markdown("""
-    **1단계: 즉각 제재 및 개선 요구 (HIGH RISK)**
-    - 대상: 위험 확률 0.6 이상 (RED)
+    **1단계: 즉각 제재 및 개선 요구**
+    - 대상: 위험 확률 0.8 이상 (RED)
     - 조치:
       - 즉시 **경고 메일 발송** (주요 위험 사유 명시)
       - **2주 내 개선 계획서 제출** 요구
@@ -658,7 +742,7 @@ with tab3:
       - 1주일 후 **재평가** 실시
     
     **2단계: 집중 모니터링 (MEDIUM RISK)**
-    - 대상: 위험 확률 0.4-0.6 (ORANGE)
+    - 대상: 위험 확률 0.4-0.6
     - 조치:
       - **개선 권고 안내** 발송
       - 월 1회 **성과 리포트** 제공
@@ -666,7 +750,7 @@ with tab3:
       - 월별 추이 모니터링
     
     **3단계: 관찰 대상 (LOW-MEDIUM RISK)**
-    - 대상: 위험 확률 0.3-0.4 (YELLOW)
+    - 대상: 위험 확률 0.3-0.4
     - 조치:
       - **관찰 대상 등록**
       - 분기별 재평가
